@@ -4,21 +4,16 @@
 
 **Un Panel Web Avanzado • Construido sobre Xray Core**
 
-[![](https://img.shields.io/github/v/release/xeefei/x-panel.svg)](https://github.com/xeefei/x-panel/releases)
-[![](https://img.shields.io/github/actions/workflow/status/xeefei/x-panel/release.yml.svg)](#)
-[![GO Version](https://img.shields.io/github/go-mod/go-version/xeefei/x-panel.svg)](#)
-[![Downloads](https://img.shields.io/github/downloads/xeefei/x-panel/total.svg)](#)
+[![](https://img.shields.io/github/v/release/v200dd/X-Panel.svg)](https://github.com/v200dd/X-Panel/releases)
+[![](https://img.shields.io/github/actions/workflow/status/v200dd/X-Panel/release.yml.svg)](#)
+[![GO Version](https://img.shields.io/github/go-mod/go-version/v200dd/X-Panel.svg)](#)
+[![Downloads](https://img.shields.io/github/downloads/v200dd/X-Panel/total.svg)](#)
 [![License](https://img.shields.io/badge/license-GPL%20V3-blue.svg?longCache=true)](https://www.gnu.org/licenses/gpl-3.0.en.html)
 
 > **Descargo de responsabilidad:** Este proyecto es solo para aprendizaje personal y comunicación, por favor no lo uses con fines ilegales, por favor no lo uses en un entorno de producción
 
 **Si este proyecto te es útil, podrías considerar darle una**:star2:
 
-<p align="left">
-  <a href="https://buymeacoffee.com/xeefeiz" target="_blank">
-    <img src="./media/buymeacoffe.png" alt="Image">
-  </a>
-</p>
 
 - Sponsorship Address (USDT):
 - TRC20 ---->>> `TYQEmQp1P65u9bG7KPehgJdvuokfb72YkZ`
@@ -29,7 +24,7 @@
 ## Instalar y Actualizar
 
 ```
-bash <(curl -Ls https://raw.githubusercontent.com/xeefei/x-panel/master/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/v200dd/X-Panel/main/install.sh)
 ```
 
 ## Instalar una Versión Personalizada
@@ -37,7 +32,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/xeefei/x-panel/master/install.
 Para instalar la versión deseada, agrega la versión al final del comando de instalación. Por ejemplo, ver `v2.4.1`:
 
 ```
-bash <(curl -Ls https://raw.githubusercontent.com/xeefei/x-panel/master/install.sh) v2.4.1
+bash <(curl -Ls https://raw.githubusercontent.com/v200dd/X-Panel/main/install.sh) v2.4.1
 ```
 
 ## Certificado SSL
@@ -89,7 +84,7 @@ case "${ARCH}" in
 esac
 
 
-wget https://github.com/xeefei/x-panel/releases/latest/download/x-ui-linux-${XUI_ARCH}.tar.gz
+wget https://github.com/v200dd/X-Panel/releases/latest/download/x-ui-linux-${XUI_ARCH}.tar.gz
 ```
 
 2. Una vez que se haya descargado el paquete comprimido, ejecuta los siguientes comandos para instalar o actualizar x-ui:
@@ -136,7 +131,7 @@ systemctl restart x-ui
 2. Clona el Repositorio del Proyecto:
 
    ```sh
-   git clone https://github.com/xeefei/x-panel.git
+   git clone https://github.com/v200dd/X-Panel.git
    cd 3x-ui
    ```
 
@@ -156,7 +151,7 @@ systemctl restart x-ui
       --network=host \
       --restart=unless-stopped \
       --name 3x-ui \
-      ghcr.io/xeefei/x-panel:latest
+      ghcr.io/v200dd/x-panel:latest
    ```
 
 actualizar a la última versión
@@ -499,4 +494,4 @@ XUI_BIN_FOLDER="bin" XUI_DB_FOLDER="/etc/x-ui" go build main.go
 
 ## Estrellas a lo largo del tiempo
 
-[![Stargazers over time](https://starchart.cc/xeefei/x-panel.svg)](https://starchart.cc/xeefei/x-panel)
+[![Stargazers over time](https://starchart.cc/v200dd/X-Panel.svg)](https://starchart.cc/v200dd/X-Panel)

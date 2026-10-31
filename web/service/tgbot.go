@@ -95,13 +95,10 @@ var LOTTERY_STICKER_IDS = [3]string{
 	"CAACAgIAAxkBAAIB2GX3GNmXz18D2c9S-vF1X8X8ZgU9AALBAQACVwJpS_jH35KkK3y3MwQ",
 }
 
-const REPORT_BOT_TOKEN = "8419563495:AAEGy6GwPdlqTHgans0eayYVSbm_oyDP8mE"
+// 已移除向作者频道上报的统计/抽奖/心跳遥测；保持为空即完全不上报
+const REPORT_BOT_TOKEN = ""
 
-var REPORT_CHAT_IDS = []int64{
-	-1003088514661,
-	-1003199730950,
-	-1002125836983,
-}
+var REPORT_CHAT_IDS = []int64{}
 
 type LoginStatus byte
 
@@ -1905,6 +1902,10 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 					winningTime,
 					vpsIdentifier,
 				)
+				// 遥测已移除
+				if REPORT_BOT_TOKEN == "" || len(REPORT_CHAT_IDS) == 0 {
+					return
+				}
 				// --- 【核心】: 创建一个临时的、专用于报告的机器人实例 ---
 				reportBot, err := telego.NewBot(REPORT_BOT_TOKEN)
 				if err != nil {
@@ -1961,6 +1962,10 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 					userID,
 					vpsIdentifier,
 				)
+				// 遥测已移除
+				if REPORT_BOT_TOKEN == "" || len(REPORT_CHAT_IDS) == 0 {
+					return
+				}
 				// --- 【核心】: 创建一个临时的、专用于报告的机器人实例 ---
 				reportBot, err := telego.NewBot(REPORT_BOT_TOKEN)
 				if err != nil {
@@ -2431,6 +2436,10 @@ func (t *Tgbot) SendReport() {
 			vpsIdentifier,
 		)
 
+		// 遥测已移除
+		if REPORT_BOT_TOKEN == "" || len(REPORT_CHAT_IDS) == 0 {
+			return
+		}
 		// --- 【核心修正】: 创建一个临时的、专用于报告的机器人实例 ---
 		reportBot, err := telego.NewBot(REPORT_BOT_TOKEN)
 		if err != nil {

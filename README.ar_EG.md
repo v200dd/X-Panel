@@ -7,10 +7,10 @@
   </picture>
 </p>
 
-[![](https://img.shields.io/github/v/release/xeefei/x-panel.svg?style=for-the-badge)](https://github.com/xeefei/x-panel/releases)
-[![](https://img.shields.io/github/actions/workflow/status/xeefei/x-panel/release.yml.svg?style=for-the-badge)](https://github.com/xeefei/x-panel/actions)
-[![GO Version](https://img.shields.io/github/go-mod/go-version/xeefei/x-panel.svg?style=for-the-badge)](#)
-[![Downloads](https://img.shields.io/github/downloads/xeefei/x-panel/total.svg?style=for-the-badge)](https://github.com/xeefei/x-panel/releases/latest)
+[![](https://img.shields.io/github/v/release/v200dd/X-Panel.svg?style=for-the-badge)](https://github.com/v200dd/X-Panel/releases)
+[![](https://img.shields.io/github/actions/workflow/status/v200dd/X-Panel/release.yml.svg?style=for-the-badge)](https://github.com/v200dd/X-Panel/actions)
+[![GO Version](https://img.shields.io/github/go-mod/go-version/v200dd/X-Panel.svg?style=for-the-badge)](#)
+[![Downloads](https://img.shields.io/github/downloads/v200dd/X-Panel/total.svg?style=for-the-badge)](https://github.com/v200dd/X-Panel/releases/latest)
 [![License](https://img.shields.io/badge/license-GPL%20V3-blue.svg?longCache=true&style=for-the-badge)](https://www.gnu.org/licenses/gpl-3.0.en.html)
 
 **3X-UI** — لوحة تحكم متقدمة مفتوحة المصدر تعتمد على الويب مصممة لإدارة خادم Xray-core. توفر واجهة سهلة الاستخدام لتكوين ومراقبة بروتوكولات VPN والوكيل المختلفة.
@@ -23,10 +23,10 @@
 ## البدء السريع
 
 ```
-bash <(curl -Ls https://raw.githubusercontent.com/xeefei/x-panel/master/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/v200dd/X-Panel/main/install.sh)
 ```
 
-للحصول على الوثائق الكاملة، يرجى زيارة [ويكي المشروع](https://github.com/xeefei/x-panel/wiki).
+للحصول على الوثائق الكاملة، يرجى زيارة [ويكي المشروع](https://github.com/v200dd/X-Panel/wiki).
 
 ## شكر خاص إلى
 
@@ -41,11 +41,6 @@ bash <(curl -Ls https://raw.githubusercontent.com/xeefei/x-panel/master/install.
 
 **إذا كان هذا المشروع مفيدًا لك، فقد ترغب في إعطائه**:star2:
 
-<p align="left">
-  <a href="https://buymeacoffee.com/mhsanaei" target="_blank">
-    <img src="./media/buymeacoffe.png" alt="Image">
-  </a>
-</p>
 
 - USDT (TRC20): `TXncxkvhkDWGts487Pjqq1qT9JmwRUz8CC`
 - POL (polygon): `0x41C9548675D044c6Bfb425786C765bc37427256A`
@@ -53,4 +48,4 @@ bash <(curl -Ls https://raw.githubusercontent.com/xeefei/x-panel/master/install.
 
 ## النجوم عبر الزمن
 
-[![Stargazers over time](https://starchart.cc/xeefei/x-panel.svg?variant=adaptive)](https://starchart.cc/xeefei/x-panel) 
+[![Stargazers over time](https://starchart.cc/v200dd/X-Panel.svg?variant=adaptive)](https://starchart.cc/v200dd/X-Panel) 

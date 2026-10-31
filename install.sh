@@ -145,7 +145,7 @@ build_from_source_tarball() {
 }
 
 # ----------------------------------------------------------
-# 函数：免费基础版安装逻辑 (install_free_version) 
+# 函数：完整版安装逻辑 (install_free_version) 
 # ----------------------------------------------------------
 install_free_version() {
     echo ""
@@ -601,9 +601,9 @@ install_free_version() {
     echo ""
     echo -e "----------------------------------------------"
     echo ""
-    echo -e "${green}〔X-Panel面板〕项目地址：${yellow}https://github.com/xeefei/x-panel${plain}" 
+    echo -e "${green}〔X-Panel面板〕项目地址：${yellow}https://github.com/v200dd/X-Panel${plain}" 
     echo ""
-    echo -e "${green} 详细安装教程：${yellow}https://xeefei.blogspot.com/2025/09/x-panel.html${plain}"
+    echo -e "${green} 安装说明：${yellow}https://github.com/v200dd/X-Panel/blob/main/安装说明.md${plain}"
     echo ""
     echo -e "----------------------------------------------"
     echo ""
@@ -631,7 +631,7 @@ install_free_version() {
     echo ""
 }
 
-# 免费版安装逻辑函数 (install_free_version) 结束
+# 完整版安装逻辑函数 (install_free_version) 结束
 
 # ----------------------------------------------------------
 # 脚本主菜单（已移除授权码/激活流程，直接安装完整版）
