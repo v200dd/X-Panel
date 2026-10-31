@@ -5,9 +5,11 @@
 # 作者: X-Panel
 # ==========================================================
 
-# 可自定义的仓库/分支：用自己的仓库构建的版本时改成你的，例如 XPANEL_REPO=yourname/x-panel
-XPANEL_REPO="${XPANEL_REPO:-xeefei/x-panel}"
+# 默认使用已去激活的仓库；如换成自己的 fork，改这里或设同名环境变量
+XPANEL_REPO="${XPANEL_REPO:-v200dd/X-Panel}"
 XPANEL_BRANCH="${XPANEL_BRANCH:-main}"
+# 默认源码构建（保证装到的是去激活版本）；若你的仓库已发布 Release，可设 XUI_FROM_SOURCE=0 直接下载
+XUI_FROM_SOURCE="${XUI_FROM_SOURCE:-1}"
 
 red='\033[0;31m'
 green='\033[0;32m'
@@ -147,7 +149,7 @@ build_from_source_tarball() {
 # ----------------------------------------------------------
 install_free_version() {
     echo ""
-    echo -e "${green}您选择了安装 【X-Panel 免费基础版】${plain}"
+    echo -e "${green}您正在安装 【X-Panel 完整版（已去激活）】${plain}"
     echo ""
     echo -e "${green}即将开始执行标准安装流程...${plain}"
     sleep 2
@@ -414,7 +416,7 @@ install_free_version() {
             url="https://github.com/${XPANEL_REPO}/releases/download/${last_version}/x-ui-linux-$(arch).tar.gz"
             echo ""
             echo -e "--------------------------------------------"
-            echo -e "${green}---------------->>>>开始安装 X-Panel 免费基础版$1${plain}"
+            echo -e "${green}---------------->>>>开始安装 X-Panel 完整版$1${plain}"
             echo -e "--------------------------------------------"
             echo ""
             sleep 2
@@ -539,7 +541,7 @@ install_free_version() {
         wg-quick up wgcf >/dev/null 2A>&1
 
         echo ""
-        echo -e "------->>>>${green}X-Panel 免费基础版 ${last_version}${plain}<<<<安装成功，正在启动..."
+        echo -e "------->>>>${green}X-Panel 完整版 ${last_version}${plain}<<<<安装成功，正在启动..."
         sleep 1
         echo ""
         echo -e "         ---------------------"
