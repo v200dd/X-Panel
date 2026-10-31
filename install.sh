@@ -227,7 +227,21 @@ install_free_version() {
 
     os_version=$(grep -i version_id /etc/os-release | cut -d \" -f2 | cut -d . -f1)
 
-    if [[ "${release}" == "arch" ]]; then
+    # CentOS 7 已 EOL，官方源失效：自动切到 vault 归档源
+    fix_centos7_repos() {
+        if [[ -d /etc/yum.repos.d ]]; then
+            for f in /etc/yum.repos.d/CentOS-*.repo; do
+                [[ -f "$f" ]] || continue
+                sed -i -e 's|^mirrorlist=|#mirrorlist=|g' \
+                       -e 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' "$f"
+            done
+            echo -e "${green}已将 yum 源切换为 vault.centos.org（CentOS 7 归档源）${plain}"
+        fi
+    }
+
+    if [[ "${XUI_ALLOW_OS}" == "1" ]]; then
+        echo -e "${yellow}已跳过系统版本检查 (XUI_ALLOW_OS=1)${plain}"
+    elif [[ "${release}" == "arch" ]]; then
         echo "您的操作系统是 ArchLinux"
     elif [[ "${release}" == "manjaro" ]]; then
         echo "您的操作系统是 Manjaro"
@@ -239,7 +253,12 @@ install_free_version() {
         echo "您的操作系统是 OpenSUSE Tumbleweed"
     elif [[ "${release}" == "centos" ]]; then
         if [[ ${os_version} -lt 8 ]]; then
-            echo -e "${red} 请使用 CentOS 8 或更高版本 ${plain}\n" && exit 1
+            if [[ ${os_version} -eq 7 ]]; then
+                echo -e "${yellow}检测到 CentOS 7（已于 2024-06 停止维护），继续安装；如遇 yum 报错请先执行 fix_centos7_repos${plain}"
+                fix_centos7_repos
+            else
+                echo -e "${red} 请使用 CentOS 7 或更高版本 ${plain}\n" && exit 1
+            fi
         fi
     elif [[ "${release}" == "ubuntu" ]]; then
         if [[ ${os_version} -lt 20 ]]; then
@@ -270,7 +289,7 @@ install_free_version() {
         echo "请确保您使用的是以下受支持的操作系统之一："
         echo "- Ubuntu 20.04+"
         echo "- Debian 11+"
-        echo "- CentOS 8+"
+        echo "- CentOS 7+（7 为兼容模式，建议升级）"
         echo "- Fedora 36+"
         echo "- Arch Linux"
         echo "- Manjaro"
@@ -280,6 +299,8 @@ install_free_version() {
         echo "- Rocky Linux 9+"
         echo "- Oracle Linux 8+"
         echo "- OpenSUSE Tumbleweed"
+        echo ""
+        echo "如确认要强行安装，可执行：XUI_ALLOW_OS=1 bash install.sh"
         exit 1
 
     fi
