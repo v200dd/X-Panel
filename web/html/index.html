@@ -517,10 +517,10 @@
 												<a-icon type="control"></a-icon><span v-if="!isMobile">{{ i18n "pages.index.config" }}</span>
 											</a-space>
 
-											<a-space direction="horizontal" @click="performRemoteBackup" :style="{ justifyContent: 'center' }">
+											<a-space direction="horizontal" @click="openSnapshotModal(true)" :style="{ justifyContent: 'center' }">
                                                                                                                                                                                                            <a-icon type="cloud-upload"></a-icon><span v-if="!isMobile">{{ i18n "pages.index.datasnapshot" }}</span>
 											</a-space>
-											<a-space direction="horizontal" @click="performRemoteRestore" :style="{ justifyContent: 'center' }">
+											<a-space direction="horizontal" @click="openSnapshotModal(false)" :style="{ justifyContent: 'center' }">
 												<a-icon type="medicine-box"></a-icon><span v-if="!isMobile">{{ i18n "pages.index.emergencyrecovery" }}</span>
 											</a-space>
 
@@ -766,59 +766,43 @@
 		<div class="ant-input" :style="{ height: 'auto', maxHeight: '500px', overflow: 'auto', marginTop: '0.5rem' }" v-html="xraylogModal.formattedLogs"></div>
 	</a-modal>
 
-<a-modal id="welcome-modal"
-        v-model="welcomeModal.visible"
-        :title="null" 
+<a-modal id="snapshot-modal"
+        v-model="snapshotModal.visible"
+        title="数据快照 / 应急恢复"
         :footer="null"
-        :closable="false"
-        :mask-closable="false"
-        width="450px"
         :class="themeSwitcher.currentTheme"
-        style="text-align: center;">
-        
-        <div style="padding: 20px 10px;">
-            <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px; color: #52c41a;">
-                <a-icon type="smile" theme="filled" style="margin-right: 8px;"></a-icon>
-                <span>X-Panel 免费基础版</span>
-            </div>
-
-            <a-divider style="margin: 15px 0;"></a-divider>
-
-            <p style="font-size: 16px; color: #1890ff; font-style: italic; font-weight: 500;">
-                * 美好的一天，从〔X-Panel 面板〕开始！*
-            </p>
-            <p style="font-size: 15px; color: #666;">
-                您当前所使用的版本为：<b>免费基础版</b>
-            </p>
-
-            <div style="background: rgba(0,0,0,0.03); padding: 15px; border-radius: 8px; margin: 20px 0; text-align: left;">
-                
-                <div style="color: #ff4d4f; font-weight: bold; font-size: 14px; line-height: 1.8;">
-                    <div>若需要使用〔Pro 版〕更多“新功能”，</div>
-                    <div>请自助联系“授权码购买”机器人：</div>
-                    <div style="margin-top: 5px;">
-                        ------->>>>  
-                        <a href="https://t.me/Buy_ShouQuan_Bot" target="_blank" style="color: #1890ff; font-weight: bold; text-decoration: underline; margin-left: 5px;">
-                            @Buy_ShouQuan_Bot
-                        </a>
-                    </div>
-                </div>
-
-                <a-divider style="margin: 15px 0;"></a-divider>
-
-                <div style="font-size: 14px;">
-                    <a-icon type="rocket" style="margin-right: 5px;"></a-icon>
-                    〔X-Panel-Pro 面板〕已实现功能：
-                    <a @click="jumpToProFeatures" style="font-weight: bold; color: #722ed1;">
-                        点击查看 <a-icon type="right"></a-icon>
-                    </a>
-                </div>
-            </div>
-
-            <a-button type="primary" shape="round" size="large" block @click="closeWelcomeModal">
-                进入面板
-            </a-button>
-        </div>
+        width="760px">
+        <a-space :style="{ marginBottom: '12px' }">
+            <a-button type="primary" icon="camera" :loading="snapshotModal.loading" @click="createSnapshot">创建快照</a-button>
+            <a-button icon="reload" :loading="snapshotModal.loading" @click="loadSnapshots">刷新列表</a-button>
+        </a-space>
+        <a-table
+            :columns="snapshotModal.columns"
+            :data-source="snapshotModal.list"
+            :pagination="false"
+            row-key="name"
+            size="small"
+            :loading="snapshotModal.loading">
+            <template slot="size" slot-scope="text">
+                [[ SizeFormatter.sizeFormat(text) ]]
+            </template>
+            <template slot="time" slot-scope="text">
+                [[ DateUtil.formatMillis(text * 1000) ]]
+            </template>
+            <template slot="action" slot-scope="text, record">
+                <a-space :size="6" style="white-space: nowrap;">
+                    <a @click="downloadSnapshot(record)">下载</a>
+                    <a-divider type="vertical" />
+                    <a-popconfirm title="恢复会覆盖当前数据库，确定继续？" ok-text="恢复" cancel-text="取消" @confirm="restoreSnapshot(record)">
+                        <a style="color: #fa8c16; white-space: nowrap;">恢复</a>
+                    </a-popconfirm>
+                    <a-divider type="vertical" />
+                    <a-popconfirm title="确定删除该快照？" ok-text="删除" cancel-text="取消" @confirm="deleteSnapshot(record)">
+                        <a style="color: #ff4d4f; white-space: nowrap;">删除</a>
+                    </a-popconfirm>
+                </a-space>
+            </template>
+        </a-table>
     </a-modal>
 	<a-modal id="backup-modal"
 		v-model="backupModal.visible"
@@ -1102,9 +1086,17 @@ ${dateTime}
               spinning: false
             },
 
-            // 新增 welcomeModal 数据对象
-            welcomeModal: {
-                visible: false
+            // 数据快照 / 应急恢复
+            snapshotModal: {
+                visible: false,
+                loading: false,
+                list: [],
+                columns: [
+                    { title: '快照文件', dataIndex: 'name', key: 'name', width: 230, ellipsis: true },
+                    { title: '大小', dataIndex: 'size', key: 'size', width: 80, scopedSlots: { customRender: 'size' } },
+                    { title: '创建时间', dataIndex: 'time', key: 'time', width: 170, scopedSlots: { customRender: 'time' } },
+                    { title: '操作', key: 'action', width: 170, scopedSlots: { customRender: 'action' }, align: 'center' },
+                ]
             },
             status: new Status(),
             versionModal,
@@ -1229,68 +1221,64 @@ ${dateTime}
                 txtModal.show('config.json', JSON.stringify(msg.obj, null, 2), 'config.json');
             },
 
-            // 按钮 1 触发的方法：显示付费提示
-            async performRemoteBackup() {
-                // 注意：这里删除了 this.visible = false，因为在主页上下文中没有弹窗需要关闭，直接弹警告即可
-                
-                // 使用 Vue 的 createElement 函数构建支持 HTML 的提示内容
-                const h = this.$createElement;
-                
-                // 弹出警告提示框
-                this.$warning({
-                    title: '功能受限提示',
-                    okText: '知道了',
-                    // 【核心修改点 1】：调整弹窗宽度，使其足够容纳一行文字
-                    width: 580, 
-                    // 这里定义提示框的具体内容和样式
-                    content: h('div', { style: 'margin-top: 10px; font-size: 15px; line-height: 1.6;' }, [ // 增加行高，提升阅读体验
-                        
-                        // 第一段：设置底部外边距，模拟空行
-                        h('p', { style: 'margin-bottom: 15px;' }, '此项功能是“付费Pro版”专属功能，免费版不能用，'), 
-                        
-                        // 第二段：设置底部外边距，模拟空行
-                        h('p', { style: 'margin-bottom: 15px;' }, '请联系面板管理员〔购买授权码〕之后才能继续使用。'), 
-                        
-                        // 第三段：TG 链接（无需底部外边距）
-                        h('p', { style: 'color: #ff4d4f; font-weight: bold; margin-bottom: 0;' }, [
-                            '----->>> “授权码购买”机器人：',
-                            h('a', { 
-                                // 设置跳转链接到 Telegram
-                                attrs: { 
-                                    href: 'https://t.me/Buy_ShouQuan_Bot', 
-                                    target: '_blank' // 在新标签页打开
-                                }, 
-                                style: { 
-                                    color: '#1890ff', // 链接颜色
-                                    fontWeight: 'bold',
-                                    textDecoration: 'underline' // 链接下划线
-                                } 
-                            }, '@Buy_ShouQuan_Bot')
-                        ]),
-                    ]),
-                    onOk() {}
+            // ===== 数据快照 / 应急恢复 =====
+            async openSnapshotModal(autoCreate) {
+                this.snapshotModal.visible = true;
+                if (autoCreate) {
+                    await this.createSnapshot();
+                } else {
+                    await this.loadSnapshots();
+                }
+            },
+            async loadSnapshots() {
+                this.snapshotModal.loading = true;
+                const msg = await HttpUtil.get('/panel/api/server/snapshots');
+                this.snapshotModal.loading = false;
+                if (!msg.success) {
+                    this.$message.error(msg.msg || '读取快照列表失败');
+                    return;
+                }
+                this.snapshotModal.list = msg.obj || [];
+            },
+            async createSnapshot() {
+                this.snapshotModal.loading = true;
+                const msg = await HttpUtil.post('/panel/api/server/snapshot');
+                this.snapshotModal.loading = false;
+                if (!msg.success) {
+                    this.$message.error(msg.msg || '创建快照失败');
+                    return;
+                }
+                this.$message.success('快照已创建：' + msg.obj.name);
+                await this.loadSnapshots();
+            },
+            downloadSnapshot(record) {
+                window.location = basePath.replace(/\/$/, '') + '/panel/api/server/snapshot/download/' + encodeURIComponent(record.name);
+            },
+            async deleteSnapshot(record) {
+                const msg = await HttpUtil.post('/panel/api/server/snapshot/delete/' + encodeURIComponent(record.name));
+                if (!msg.success) {
+                    this.$message.error(msg.msg || '删除失败');
+                    return;
+                }
+                this.$message.success('快照已删除');
+                await this.loadSnapshots();
+            },
+            async restoreSnapshot(record) {
+                this.snapshotModal.loading = true;
+                const msg = await HttpUtil.post('/panel/api/server/snapshot/restore/' + encodeURIComponent(record.name));
+                this.snapshotModal.loading = false;
+                if (!msg.success) {
+                    this.$message.error(msg.msg || '恢复失败');
+                    return;
+                }
+                this.$success({
+                    title: '恢复完成',
+                    content: '数据库已恢复为快照 ' + record.name + '，请重新登录面板。',
+                    okText: '重新登录',
+                    onOk() {
+                        window.location.href = basePath.replace(/\/$/, '') + '/';
+                    }
                 });
-            },
-
-            // 1. 关闭弹窗并记录状态
-            closeWelcomeModal() {
-                this.welcomeModal.visible = false;
-                // 记录到 sessionStorage，确保本次浏览器会话不再弹出
-                sessionStorage.setItem('welcomeShown', 'true');
-            },
-
-            // 2. 跳转到 navigation 页面 (尝试定位到第3个选项卡)
-            jumpToProFeatures() {
-                this.closeWelcomeModal(); // 先关闭弹窗
-                // 根据 Sidebar 逻辑拼接路径
-                // 注意：这里默认跳转到 navigation 页面。
-                // 如果 navigation 页面支持 ?tab=3 这种参数请保留参数，不支持则只会跳转到默认页
-                window.location.href = '{{ .base_path }}panel/navigation?tab=3'; 
-            },
-
-            // 按钮 2 触发的方法：显示相同的提示
-            async performRemoteRestore() {
-                 this.performRemoteBackup();
             },
 
             openBackup() {
@@ -1334,11 +1322,6 @@ ${dateTime}
         },
         async mounted() {
 
-            // 页面加载完成后，检查是否显示过欢迎弹窗
-            const hasShown = sessionStorage.getItem('welcomeShown');
-            if (!hasShown) {
-                this.welcomeModal.visible = true;
-            }
             if (window.location.protocol !== "https:") {
                 this.showAlert = true;
             }

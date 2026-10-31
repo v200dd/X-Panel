@@ -65,6 +65,9 @@ func (x *XrayAPI) Close() {
 }
 
 func (x *XrayAPI) AddInbound(inbound []byte) error {
+	if x == nil || x.HandlerServiceClient == nil {
+		return fmt.Errorf("xray api 未连接（请检查 API 端口配置或 Xray 是否正在运行）")
+	}
 	client := *x.HandlerServiceClient
 
 	conf := new(conf.InboundDetourConfig)
@@ -86,6 +89,9 @@ func (x *XrayAPI) AddInbound(inbound []byte) error {
 }
 
 func (x *XrayAPI) DelInbound(tag string) error {
+	if x == nil || x.HandlerServiceClient == nil {
+		return fmt.Errorf("xray api 未连接（请检查 API 端口配置或 Xray 是否正在运行）")
+	}
 	client := *x.HandlerServiceClient
 	_, err := client.RemoveInbound(context.Background(), &command.RemoveInboundRequest{
 		Tag: tag,
@@ -169,6 +175,9 @@ func (x *XrayAPI) AddUser(Protocol string, inboundTag string, user map[string]an
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	if x == nil || x.HandlerServiceClient == nil {
+		return fmt.Errorf("xray api 未连接（请检查 API 端口配置或 Xray 是否正在运行）")
+	}
 	client := *x.HandlerServiceClient
 
 	_, err := client.AlterInbound(ctx, &command.AlterInboundRequest{ // 〔中文注释〕: (修改点) 使用上面创建的带超时的 ctx
@@ -200,6 +209,9 @@ func (x *XrayAPI) RemoveUser(inboundTag, email string) error {
 		Operation: serial.ToTypedMessage(op),
 	}
 
+	if x == nil || x.HandlerServiceClient == nil {
+		return fmt.Errorf("xray api 未连接（请检查 API 端口配置或 Xray 是否正在运行）")
+	}
 	_, err := (*x.HandlerServiceClient).AlterInbound(ctx, req)
 	if err != nil {
 		return fmt.Errorf("failed to remove user: %w", err)

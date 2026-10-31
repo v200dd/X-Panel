@@ -1,9 +1,13 @@
 #!/bin/bash
 
 # ==========================================================
-# X-Panel 统一安装脚本 (付费/免费二合一)
+# X-Panel 安装脚本（已移除授权码激活，安装后即为完整功能版）
 # 作者: X-Panel
 # ==========================================================
+
+# 可自定义的仓库/分支：用自己的仓库构建的版本时改成你的，例如 XPANEL_REPO=yourname/x-panel
+XPANEL_REPO="${XPANEL_REPO:-xeefei/x-panel}"
+XPANEL_BRANCH="${XPANEL_BRANCH:-main}"
 
 red='\033[0;31m'
 green='\033[0;32m'
@@ -14,100 +18,129 @@ plain='\033[0m'
 # check root
 [[ $EUID -ne 0 ]] && echo -e "${red}致命错误: ${plain} 请使用 root 权限运行此脚本\n" && exit 1
 
-# ----------------------------------------------------------
-# 获取机器唯一硬件标识 (HWID)
-# ----------------------------------------------------------
-get_hwid() {
-    local machine_id=""
 
-    # 1. 优先尝试获取 DMI Product UUID (VPS 硬件 ID，重装系统通常不变)
-    if [[ -r /sys/class/dmi/id/product_uuid ]]; then
-        machine_id=$(cat /sys/class/dmi/id/product_uuid)
-    
-    # 2. 其次尝试获取 eth0 网卡 MAC 地址 (大部分 VPS 重装后 MAC 不变)
-    elif [[ -r /sys/class/net/eth0/address ]]; then
-        machine_id=$(cat /sys/class/net/eth0/address)
-        
-    # 3. 如果都失败，才使用 machine-id (重装会变，作为最后兜底)
-    elif [[ -f /etc/machine-id ]]; then
-        machine_id=$(cat /etc/machine-id)
+# ----------------------------------------------------------
+# 从源码构建安装包（XUI_FROM_SOURCE=1 时使用）
+# 用途：直接安装本仓库源码构建的完整功能版，无需等待 Release 二进制
+# ----------------------------------------------------------
+build_from_source_tarball() {
+    echo ""
+    echo -e "${green}==> 使用【源码构建】模式安装（自动编译当前仓库源码）${plain}"
+    echo ""
+
+    install_base >/dev/null 2>&1 || true
+
+    case "${release}" in
+        ubuntu | debian | armbian)
+            apt-get install -y -q gcc libc6-dev git unzip ca-certificates curl >/dev/null 2>&1
+            ;;
+        centos | rhel | almalinux | rocky | ol | fedora | amzn)
+            yum install -y -q gcc glibc-devel git unzip ca-certificates curl >/dev/null 2>&1
+            ;;
+        alpine)
+            apk add --no-cache gcc musl-dev git unzip ca-certificates curl >/dev/null 2>&1
+            ;;
+    esac
+
+    # go.mod 要求 Go 1.27+，系统源里的版本通常过旧，这里统一用官方二进制
+    local go_need="1.27"
+    local go_have=""
+    if command -v go >/dev/null 2>&1; then
+        go_have=$(go env GOVERSION 2>/dev/null | sed 's/^go//')
+    fi
+    if [[ -z "${go_have}" || "$(printf '%s\n%s\n' "${go_need}" "${go_have}" | sort -V | head -n1)" != "${go_need}" ]]; then
+        local go_ver go_arch
+        go_ver=$(curl -fsL "https://go.dev/VERSION?m=text" | head -n1)
+        case "$(arch)" in
+            amd64) go_arch="amd64" ;;
+            arm64) go_arch="arm64" ;;
+            386)   go_arch="386" ;;
+            armv6 | armv7) go_arch="armv6l" ;;
+            *)     go_arch="amd64" ;;
+        esac
+        echo -e "${green}正在安装 ${go_ver}（linux-${go_arch}）......${plain}"
+        if ! curl -fL --connect-timeout 20 -o /tmp/go.tgz "https://go.dev/dl/${go_ver}.linux-${go_arch}.tar.gz"; then
+            echo -e "${red}Go 下载失败，请检查网络${plain}"
+            exit 1
+        fi
+        rm -rf /usr/local/go
+        tar -C /usr/local -xzf /tmp/go.tgz
+        rm -f /tmp/go.tgz
+        export PATH="/usr/local/go/bin:${PATH}"
+    fi
+
+    if ! command -v go >/dev/null 2>&1; then
+        echo -e "${red}未找到 go 编译器，无法从源码构建${plain}"
+        exit 1
+    fi
+    echo -e "${green}Go 版本：$(go version)${plain}"
+
+    local work src
+    work=$(mktemp -d)
+
+    # 优先使用脚本同目录下的源码（把改好的源码上传到 VPS 后直接执行脚本即可）
+    local script_dir
+    script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)
+    if [[ -n "${XUI_SRC_DIR}" && -f "${XUI_SRC_DIR}/main.go" ]]; then
+        src="${XUI_SRC_DIR}"
+        echo -e "${green}使用指定源码目录：${src}${plain}"
+    elif [[ -n "${script_dir}" && -f "${script_dir}/main.go" ]]; then
+        src="${script_dir}"
+        echo -e "${green}使用脚本同目录源码：${src}${plain}"
     else
-        machine_id=$(hostname)
+        echo -e "${green}正在下载源码：${XPANEL_REPO}@${XPANEL_BRANCH}${plain}"
+        if ! curl -fL --connect-timeout 20 -o "${work}/src.zip" "https://codeload.github.com/${XPANEL_REPO}/zip/refs/heads/${XPANEL_BRANCH}"; then
+            echo -e "${red}源码下载失败，请检查网络或仓库名${plain}"
+            exit 1
+        fi
+        unzip -q "${work}/src.zip" -d "${work}"
+        src=$(find "${work}" -maxdepth 1 -type d -name '*-*' ! -path "${work}" | head -n 1)
     fi
-    
-    # 取 MD5 作为唯一指纹，确保格式统一
-    echo -n "$machine_id" | md5sum | awk '{print $1}'
+    if [[ -z "${src}" || ! -f "${src}/main.go" ]]; then
+        echo -e "${red}源码异常，未找到 main.go${plain}"
+        exit 1
+    fi
+
+    echo -e "${green}正在编译（约 1-3 分钟）......${plain}"
+    if ! ( cd "${src}" && CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go ); then
+        echo -e "${red}编译失败，请确认系统内存足够（建议 1G 以上）${plain}"
+        exit 1
+    fi
+
+    # 组装安装包结构
+    mkdir -p "${work}/pkg/x-ui/bin"
+    cp "${src}/x-ui" "${work}/pkg/x-ui/x-ui"
+    cp "${src}/x-ui.service" "${work}/pkg/x-ui/x-ui.service"
+    cp "${src}/x-ui.sh" "${work}/pkg/x-ui/x-ui.sh"
+
+    local xarch xray_zip
+    case "$(arch)" in
+        amd64) xarch="amd64"; xray_zip="Xray-linux-64.zip" ;;
+        arm64) xarch="arm64"; xray_zip="Xray-linux-arm64-v8a.zip" ;;
+        armv7) xarch="armv7"; xray_zip="Xray-linux-arm32-v7a.zip" ;;
+        armv6) xarch="armv6"; xray_zip="Xray-linux-arm32-v6.zip" ;;
+        386)   xarch="386";   xray_zip="Xray-linux-32.zip" ;;
+        *)     xarch="amd64"; xray_zip="Xray-linux-64.zip" ;;
+    esac
+
+    echo -e "${green}正在下载 Xray 内核与规则库......${plain}"
+    ( cd "${work}/pkg/x-ui/bin" \
+        && curl -fL -o xray.zip "https://github.com/XTLS/Xray-core/releases/download/v26.9.9/${xray_zip}" \
+        && unzip -q -o xray.zip xray \
+        && mv xray "xray-linux-${xarch}" \
+        && rm -f xray.zip \
+        && curl -fsL -o geoip.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat" \
+        && curl -fsL -o geosite.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" ) || {
+        echo -e "${red}Xray 内核下载失败，请检查网络${plain}"
+        exit 1
+    }
+    chmod +x "${work}/pkg/x-ui/x-ui" "${work}/pkg/x-ui/bin/xray-linux-${xarch}"
+
+    tar -czf "/usr/local/x-ui-linux-$(arch).tar.gz" -C "${work}/pkg" x-ui
+    rm -rf "${work}"
+    echo -e "${green}==> 安装包构建完成${plain}"
+    echo ""
 }
-
-# ----------------------------------------------------------
-# 函数：付费Pro版安装逻辑 (install_paid_version)
-# ----------------------------------------------------------
-# 此函数负责获取授权码和IP + 机器指纹，并从远程授权服务器获取并执行付费脚本
-#
-install_paid_version() {
-    echo ""
-    echo -e "${green}您正在安装/升级/更新 【X-Panel 付费Pro版】${plain}"
-    echo ""
-    echo -e "${yellow}------------------------------------------------------${plain}"
-    echo ""
-
-    # 1. 提示用户输入授权码
-    read -p "$(echo -e "${yellow}请输入您的授权码 (License Key): ${plain}")" auth_key
-    echo ""
-    
-    if [ -z "$auth_key" ]; then
-        echo -e "${red}错误: 您没有输入授权码。${plain}"
-        exit 1
-    fi
-    
-    # 2. 获取本机的公共 IPv4 地址
-    echo -e "${green}正在获取本机 IP 地址......${plain}"
-    vps_ip=$(curl -s4m8 ip.sb -k | head -n 1)
-    
-    if [ -z "$vps_ip" ]; then
-        echo -e "${red}致命错误: 未能获取服务器的公共 IP 地址。${plain}"
-        echo -e "${red}请检查您的网络连接或 curl 是否正常工作。${plain}"
-        exit 1
-    fi
-
-    # 3. [新增] 获取本机硬件指纹
-    vps_hwid=$(get_hwid)
-
-    echo -e "${green}本机 IP: ${vps_ip}${plain}"
-    echo -e "${green}机器指纹: ${vps_hwid}${plain}" # 调试用
-    echo ""
-    
-    # 4. 设置您的授权服务器地址
-    AUTH_SERVER_URL="https://auth.x-panel.vip/install_pro.php"
-    
-    echo -e "${green}正在连接〔远程授权服务器〕进行验证......${plain}"
-    echo ""
-    echo -e "${yellow}请稍候.........${plain}"
-    
-    # 5. 将服务器响应保存到变量
-    response=$(curl -sL --connect-timeout 20 -X POST -d "key=${auth_key}&ip=${vps_ip}&hwid=${vps_hwid}" "${AUTH_SERVER_URL}")
-    
-    # 6. 简单判断响应是否为空
-    if [ -z "$response" ]; then
-        echo -e "${red}错误: 无法连接到授权服务器或服务器无响应。${plain}"
-        echo -e "${yellow}请检查网络连接或联系管理员。${plain}"
-        exit 1
-    fi
-
-    # 7. 判断是否包含 PHP 错误 (如 Syntax error 或 Fatal error)
-    # 如果 PHP 报错，通常会包含 "Fatal error" 或 "Parse error" 字样
-    if echo "$response" | grep -qE "Fatal error|Parse error"; then
-         echo -e "${red}错误: 授权服务器发生内部错误。${plain}"
-         echo -e "详细信息: $response"
-         exit 1
-    fi
-
-    # 8. 执行脚本
-    bash <(echo "$response")
-    
-    exit 0
-}
-
 
 # ----------------------------------------------------------
 # 函数：免费基础版安装逻辑 (install_free_version) 
@@ -166,7 +199,7 @@ install_free_version() {
     # echo ""
     echo -e "${yellow}---------->>>>>当前系统的架构为: $(arch)${plain}"
     echo ""
-    last_version=$(curl -Ls "https://api.github.com/repos/xeefei/x-panel/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    last_version=$(curl -Ls "https://api.github.com/repos/${XPANEL_REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
     # 获取 x-ui 版本
     xui_version=$(/usr/local/x-ui/x-ui -v)
 
@@ -339,12 +372,23 @@ install_free_version() {
     install_x-ui() {
         cd /usr/local/
 
+        # 源码构建模式：先在本机编译安装包，再走后续安装流程
+        if [[ "${XUI_FROM_SOURCE}" == "1" && -z "$1" ]]; then
+            build_from_source_tarball
+            last_version="源码构建"
+            local SRC_BUILD=1
+        fi
+
         # Download resources
         if [ $# == 0 ]; then
-            last_version=$(curl -Ls "https://api.github.com/repos/xeefei/x-panel/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-            if [[ ! -n "$last_version" ]]; then
+            last_version=$(curl -Ls "https://api.github.com/repos/${XPANEL_REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+            if [[ ! -n "$last_version" && "${XUI_FROM_SOURCE}" != "1" ]]; then
                 echo -e "${red}获取 X-Panel 版本失败，可能是 Github API 限制，请稍后再试${plain}"
                 exit 1
+            fi
+            if [[ "${XUI_FROM_SOURCE}" == "1" ]]; then
+                last_version="源码构建"
+                SRC_BUILD=1
             fi
             echo ""
             echo -e "-----------------------------------------------------"
@@ -358,14 +402,16 @@ install_free_version() {
             echo -e "${green}---------------->>>>>>>>>>>>>>>>>>>>>安装进度100%${plain}"
             echo ""
             sleep 2
-            wget -N --no-check-certificate -O /usr/local/x-ui-linux-$(arch).tar.gz https://github.com/xeefei/x-panel/releases/download/${last_version}/x-ui-linux-$(arch).tar.gz
+            if [[ "${XUI_FROM_SOURCE}" != "1" ]]; then
+                wget -N --no-check-certificate -O /usr/local/x-ui-linux-$(arch).tar.gz https://github.com/${XPANEL_REPO}/releases/download/${last_version}/x-ui-linux-$(arch).tar.gz
+            fi
             if [[ $? -ne 0 ]]; then
                 echo -e "${red}下载 X-Panel 失败, 请检查服务器是否可以连接至 GitHub？ ${plain}"
                 exit 1
             fi
         else
             last_version=$1
-            url="https://github.com/xeefei/x-panel/releases/download/${last_version}/x-ui-linux-$(arch).tar.gz"
+            url="https://github.com/${XPANEL_REPO}/releases/download/${last_version}/x-ui-linux-$(arch).tar.gz"
             echo ""
             echo -e "--------------------------------------------"
             echo -e "${green}---------------->>>>开始安装 X-Panel 免费基础版$1${plain}"
@@ -378,13 +424,15 @@ install_free_version() {
             echo -e "${green}---------------->>>>>>>>>>>>>>>>>>>>>安装进度100%${plain}"
             echo ""
             sleep 2
-            wget -N --no-check-certificate -O /usr/local/x-ui-linux-$(arch).tar.gz ${url}
+            if [[ "${XUI_FROM_SOURCE}" != "1" ]]; then
+                wget -N --no-check-certificate -O /usr/local/x-ui-linux-$(arch).tar.gz ${url}
+            fi
             if [[ $? -ne 0 ]]; then
                 echo -e "${red}下载 X-Panel $1 失败, 请检查此版本是否存在 ${plain}"
                 exit 1
             fi
         fi
-        wget -O /usr/bin/x-ui-temp https://raw.githubusercontent.com/xeefei/x-panel/main/x-ui.sh
+        wget -O /usr/bin/x-ui-temp https://raw.githubusercontent.com/${XPANEL_REPO}/${XPANEL_BRANCH}/x-ui.sh
 
         # Stop x-ui service and remove old resources
         if [[ -e /usr/local/x-ui/ ]]; then
@@ -583,36 +631,16 @@ install_free_version() {
 # 免费版安装逻辑函数 (install_free_version) 结束
 
 # ----------------------------------------------------------
-# 脚本主菜单
+# 脚本主菜单（已移除授权码/激活流程，直接安装完整版）
 # ----------------------------------------------------------
 main_menu() {
     echo -e "${green}======================================================${plain}"
     echo -e " 欢迎使用 ${yellow}〔X-Panel 面板〕${plain} 一键安装脚本"
     echo -e "${green}======================================================${plain}"
     echo ""
-    echo -e "请选择您要安装的版本:"
+    echo -e "${green}当前仓库：${yellow}${XPANEL_REPO}${plain}（分支：${XPANEL_BRANCH}）"
     echo ""
-    echo -e "  ${green}1)${plain} 安装 ${yellow}〔X-Panel 面板〕免费基础版${plain} (GitHub 开源项目)"
-    echo ""
-    echo -e "  ${green}2)${plain} 安装 ${yellow}〔X-Panel 面板〕付费Pro版${plain} (需要购买授权码)"
-    echo ""
-    read -p "请输入您的选择 (1 或 2): " version_choice
-    echo ""
-    
-    case "$version_choice" in
-        1)
-            # 如果选择1，调用免费版函数
-            install_free_version
-            ;;
-        2)
-            # 如果选择2，调用付费版函数
-            install_paid_version
-            ;;
-        *)
-            echo -e "${red}输入无效, 退出安装。${plain}"
-            exit 1
-            ;;
-    esac
+    install_free_version
 }
 
 # ----------------------------------------------------------

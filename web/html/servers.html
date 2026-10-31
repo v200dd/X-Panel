@@ -59,7 +59,7 @@
 {{ template "page/body_start" .}}
 <a-layout id="app" v-cloak :class="themeSwitcher.currentTheme">
     <a-sidebar></a-sidebar>
-    
+
     <a-layout id="content-layout">
         <a-layout-content>
             <a-spin :spinning="loading" tip="加载中...">
@@ -70,14 +70,13 @@
                                 <a-row>
                                     <a-col :span="24">
                                         <a-space :size="15">
-                                            
                                             <a-button type="primary" @click="openAddModal(0)">
                                                 <a-icon type="plus"></a-icon> 添加〔被控端 VPS〕
                                             </a-button>
 
                                             <a-button type="primary" style="cursor: default;">
                                                 <a-icon type="info-circle"></a-icon>
-                                                当前已绑定：[[ normalCount ]] 台 (最多可绑：[[ maxLimit ]] 台)
+                                                当前已绑定：[[ normalServers.length ]] 台
                                             </a-button>
 
                                             <a-button type="default" icon="reload" @click="getServers">
@@ -87,66 +86,80 @@
                                             <a-button type="primary" icon="setting" @click="goToTgSettings">
                                                 配置本机“主控机器人”
                                             </a-button>
-
                                         </a-space>
                                     </a-col>
                                 </a-row>
 
-                                <a-table :columns="columns" :data-source="normalServersPage" :row-key="record => record.ID" :pagination="normalPagination" @change="handleNormalTableChange" style="margin-top: 20px">
-    <template slot="action" slot-scope="text, record">
-        <a-space>
-            <a-button type="danger" size="small" icon="delete" @click="deleteServer(record)">删除</a-button>
-        </a-space>
-    </template>
-</a-table>
+                                <a-table :columns="columns" :data-source="normalServersPage" row-key="id"
+                                         :pagination="normalPagination" @change="handleNormalTableChange"
+                                         :scroll="isMobile ? { x: 'max-content' } : {}" style="margin-top: 20px">
+                                    <template slot="status" slot-scope="text, record">
+                                        <a-tag v-if="record.status" color="green">正常</a-tag>
+                                        <a-tag v-else color="orange">未检测</a-tag>
+                                    </template>
+                                    <template slot="action" slot-scope="text, record">
+                                        <a-space>
+                                            <a-button size="small" icon="api" :loading="record.checkLoading" @click="checkServer(record)">检测</a-button>
+                                            <a-button type="danger" size="small" icon="delete" @click="deleteServer(record)">删除</a-button>
+                                        </a-space>
+                                    </template>
+                                </a-table>
                             </a-card>
-                            
-<a-card hoverable title="一键部署中转节点">
-<a-row>
+
+                            <a-card hoverable title="一键部署中转节点">
+                                <a-row>
                                     <a-col :span="24">
                                         <div style="margin-bottom: 15px; color: #666;">
-                                            <a-icon type="info-circle"></a-icon> 
-                                            说明：在此添加远程中转机（落地机）信息，点击“一键部署”即可自动完成：
-                                            远程Socks创建 --> 本机路由配置 --> 本机入口创建 --> 生成“二维码和链接”。
+                                            <a-icon type="info-circle"></a-icon>
+                                            说明：在此添加远程中转机（落地机）信息，点击“一键部署中转”即可自动在被控端创建转发入站，
+                                            并生成可直接使用的中转链接。
                                         </div>
                                         <a-space :size="15">
                                             <a-button type="primary" @click="openAddModal(1)">
-                <a-icon type="plus"></a-icon> 添加〔中转机 VPS〕
-            </a-button>
-            
-            <a-button type="primary" style="cursor: default;">
-                <a-icon type="info-circle"></a-icon>
-                当前已绑定：[[ transitCount ]] 台 (最多可绑：[[ maxLimit ]] 台)
-            </a-button>
+                                                <a-icon type="plus"></a-icon> 添加〔中转机 VPS〕
+                                            </a-button>
 
-            <a-button type="default" icon="reload" @click="getServers">
-                刷新列表
-            </a-button>
+                                            <a-button type="primary" style="cursor: default;">
+                                                <a-icon type="info-circle"></a-icon>
+                                                当前已绑定：[[ transitServers.length ]] 台
+                                            </a-button>
 
-											<a-button type="primary" icon="thunderbolt" @click="openCheckModal">
+                                            <a-button type="default" icon="reload" @click="getServers">
+                                                刷新列表
+                                            </a-button>
+
+                                            <a-button type="primary" icon="thunderbolt" @click="openCheckModal">
                                                 检测中转节点“连通性”
                                             </a-button>
                                         </a-space>
                                     </a-col>
                                 </a-row>
-    
-    <a-table :columns="columns" :data-source="transitServersPage" :row-key="record => record.ID" :pagination="transitPagination" @change="handleTransitTableChange" :scroll="isMobile ? { x: 'max-content' } : {}" style="margin-top: 20px">
-        <template slot="action" slot-scope="text, record">
-            <a-space>
-                <a-button v-if="record.LastLink || record.last_link" type="default" size="small" icon="link" @click="getLastLink(record)" :loading="record.linkLoading">
-                    获取上次链接
-                </a-button>
-                
-                <a-button type="primary" size="small" icon="rocket" @click="setupRelay(record)" :loading="record.setupLoading" :type="(record.LastLink || record.last_link) ? 'dashed' : 'primary'">
-                    [[ (record.LastLink || record.last_link) ? '重新部署' : '一键部署中转' ]]
-                </a-button>
-                
-                <a-button type="danger" size="small" icon="delete" @click="deleteServer(record)">删除</a-button>
-            </a-space>
-        </template>
-    </a-table>
-</a-card>
-                            
+
+                                <a-table :columns="columns" :data-source="transitServersPage" row-key="id"
+                                         :pagination="transitPagination" @change="handleTransitTableChange"
+                                         :scroll="isMobile ? { x: 'max-content' } : {}" style="margin-top: 20px">
+                                    <template slot="status" slot-scope="text, record">
+                                        <a-tag v-if="record.status" color="green">正常</a-tag>
+                                        <a-tag v-else color="orange">未检测</a-tag>
+                                    </template>
+                                    <template slot="action" slot-scope="text, record">
+                                        <a-space>
+                                            <a-button v-if="record.lastLink" type="default" size="small" icon="link"
+                                                      @click="getLastLink(record)">
+                                                获取上次链接
+                                            </a-button>
+                                            <a-button size="small" icon="api" :loading="record.checkLoading"
+                                                      @click="checkServer(record)">检测</a-button>
+                                            <a-button type="primary" size="small" icon="rocket" :loading="record.deployLoading"
+                                                      :type="record.lastLink ? 'dashed' : 'primary'"
+                                                      @click="setupRelay(record)">
+                                                [[ record.lastLink ? '重新部署' : '一键部署中转' ]]
+                                            </a-button>
+                                            <a-button type="danger" size="small" icon="delete" @click="deleteServer(record)">删除</a-button>
+                                        </a-space>
+                                    </template>
+                                </a-table>
+                            </a-card>
                         </a-col>
                     </a-row>
                 </transition>
@@ -154,14 +167,15 @@
         </a-layout-content>
     </a-layout>
 
-  <a-modal v-model="visible" :title="formType === 1 ? '添加〔中转机 VPS〕' : '添加〔被控端 VPS〕'" @ok="submitServer" :confirm-loading="modalLoading">
+    <a-modal v-model="visible" :title="formType === 1 ? '添加〔中转机 VPS〕' : '添加〔被控端 VPS〕'"
+             @ok="submitServer" :confirm-loading="modalLoading">
         <a-form :model="form" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
             <a-form-item label="备注名称">
                 <a-input v-model="form.name" placeholder="例如：香港鸡"></a-input>
             </a-form-item>
             <a-form-item label="面板地址">
-                <a-input v-model="form.url" placeholder="https://aaa.xxxx.com:54321/nbxuiplus"></a-input>
-                <span style="font-size: 12px; color: #888;">* 必须包含协议头 (https://) 和 “端口 + 路径”</span>
+                <a-input v-model="form.url" placeholder="https://aaa.xxxx.com:54321"></a-input>
+                <span style="font-size: 12px; color: #888;">* 必须包含协议头 (https://) 和端口；若面板有访问路径，路径也需一并填写</span>
             </a-form-item>
             <a-form-item label="用 户 名">
                 <a-input v-model="form.username" placeholder="面板登录用户名"></a-input>
@@ -169,80 +183,80 @@
             <a-form-item label="登录密码">
                 <a-input-password v-model="form.password" placeholder="面板登录密码"></a-input-password>
             </a-form-item>
+            <a-form-item label="备　　注">
+                <a-input v-model="form.remark" placeholder="可选"></a-input>
+            </a-form-item>
         </a-form>
 
-        <div v-if="formType === 0" style="margin-top: 20px; color: red; font-style: italic; text-align: center; line-height: 1.6;">
-            1、此功能用于集中管理多个〔X-Panel 面板〕，<br>
-            2、是通过在后台〔配置绑定机器人〕去管理的，<br>
-            3、若在输入框您已经添加了〔被控端 的 VPS 信息〕，<br>
-            4、则您不能在对应的那台 VPS 中去绑定任何其他机器人，<br>
-            5、并且，您的〔被控端 VPS〕面板不能去开启“两步验证”。
+        <div v-if="formType === 0" style="margin-top: 20px; color: #888; text-align: center; line-height: 1.8;">
+            1、此功能用于集中管理多个〔X-Panel 面板〕；<br>
+            2、添加后可在本机机器人中切换控制对应面板；<br>
+            3、被控端面板需关闭“两步验证”，否则无法登录。
         </div>
-
-         <div v-else style="margin-top: 20px; color: #1890ff; font-style: italic; text-align: center; line-height: 1.6;">
-        1、此功能仅用于建立〔VLESS Reality --> Socks5〕中转链路，<br>
-        2、在此处添加的〔中转/落地机 VPS〕面板不能去开启“两步验证”，<br>
-        3、在添加输入信息后，请点击列表中的“一键部署”按钮即可去使用，<br>
-        4、而“中转/落地机”无需做任何设置，只需确保防火墙放行端口即可，<br>
-        5、请勿在连“本机节点”时去进行〔一键部署〕，因“Xray重启”会有卡顿，<br>
-        6、注：在已经创建好“中转节点”之后，勿去随意更改“用户Email + 端口”。
-         </div>
-
+        <div v-else style="margin-top: 20px; color: #888; text-align: center; line-height: 1.8;">
+            1、此功能用于建立〔VLESS Reality --> 中转机〕中转链路；<br>
+            2、中转机面板需关闭“两步验证”；<br>
+            3、添加后点击列表“一键部署中转”，中转机无需手动设置；<br>
+            4、请确保中转机防火墙放行你设置的中转端口。
+        </div>
     </a-modal>
 
-<a-modal v-model="resultModalVisible" :title="resultTitle" :footer="null" :width="450">
-		<div style="text-align: center;">
+    <a-modal v-model="deployModalVisible" title="一键部署中转" :confirm-loading="deployLoading" @ok="doDeployRelay"
+             ok-text="开始部署" cancel-text="取消" width="560px">
+        <a-alert type="info" show-icon style="margin-bottom: 15px;"
+                 message="将自动在〔中转机〕上创建一个转发入站，把流量转发回本机选中的入站端口，并生成中转链接。"></a-alert>
+        <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 17 }">
+            <a-form-item label="主控入站">
+                <a-select v-model="deployForm.inboundId" placeholder="选择本机要中转的入站" @change="onInboundChange" show-search
+                          option-filter-prop="label">
+                    <a-select-option v-for="ib in inbounds" :key="ib.id"
+                                     :value="ib.id"
+                                     :label="ib.remark + ' (' + ib.protocol + ':' + ib.port + ')'">
+                        [[ ib.remark ]] ([[ ib.protocol ]]:[[ ib.port ]])
+                    </a-select-option>
+                </a-select>
+            </a-form-item>
+            <a-form-item label="主控地址">
+                <a-input v-model="deployForm.masterHost" placeholder="本机公网 IP 或域名"></a-input>
+                <span style="font-size: 12px; color: #888;">中转机将通过该地址回连本机，若本机在 CDN/反代之后请手动填写正确地址</span>
+            </a-form-item>
+            <a-form-item label="中转端口">
+                <a-input-number v-model="deployForm.relayPort" :min="1" :max="65535" style="width: 100%;"></a-input-number>
+                <span style="font-size: 12px; color: #888;">中转机上用于对外提供服务的端口，请确保未被占用且已放行</span>
+            </a-form-item>
+        </a-form>
+    </a-modal>
 
-			<div style="text-align: left; color: #555; white-space: pre-wrap; line-height: 1.6; margin-bottom: 20px;">[[ resultSubtitle ]]</div>
+    <a-modal v-model="resultModalVisible" :title="resultTitle" :footer="null" :width="520">
+        <div style="text-align: center;">
+            <div style="text-align: left; color: #555; white-space: pre-wrap; line-height: 1.6; margin-bottom: 20px;">[[ resultSubtitle ]]</div>
+            <div id="qrcode-canvas" style="display: flex; justify-content: center; margin: 10px 0; cursor: pointer;"
+                 title="点击复制链接" @click="copyLink"></div>
+            <p style="font-size: 12px; color: #aaa;">(点击二维码或链接即可复制)</p>
+            <p style="font-weight:bold; margin-top:15px; text-align: left;">👇 中转链接（每行一个客户端）：</p>
+            <a-textarea v-model="resultLink" :auto-size="{ minRows: 3, maxRows: 10 }" read-only @click="copyLink"></a-textarea>
+            <a-button type="primary" icon="copy" style="margin-top: 12px;" @click="copyLink">复制全部链接</a-button>
+        </div>
+    </a-modal>
 
-			<p style="color: #888; margin-bottom: 5px;">链路：本机(Reality) --->> 中转机(Socks) --->> 互联网</p>
+    <a-modal v-model="checkModalVisible" title="检测中转节点“连通性”" :footer="null" width="700px">
+        <a-alert type="info" show-icon style="margin-bottom: 15px;">
+            <template slot="message">
+                通过登录被控端面板并读取入站列表，验证账号密码、面板地址与网络是否可用。
+            </template>
+        </a-alert>
 
-			<div 
-				id="qrcode-canvas" 
-				style="display: flex; justify-content: center; margin: 10px 0; cursor: pointer;" 
-				title="点击复制链接" 
-				@click="copyLink"
-			></div>
-			<p style="font-size: 12px; color: #aaa;">(点击二维码或链接即可复制)</p>
-
-			<p style="font-weight:bold; margin-top:15px; text-align: left;">👇 VLESS Reality 中转链接：</p>
-			<a-input v-model="resultLink" read-only @click="copyLink">
-				<a-icon slot="addonAfter" type="copy" @click="copyLink" style="cursor: pointer;"/>
-			</a-input>
-		</div>
-	</a-modal>
-
-<a-modal v-model="checkModalVisible" title="检测中转节点“连通性”" :footer="null" width="700px">
-
-    <!-- 这里是提示框：在暗黑模式下文字看不清的地方 -->
-    <a-alert
-        type="info"
-        show-icon
-        bordered
-        style="margin-bottom: 15px;"
-    >
-        <template slot="message">
-            此功能通过 TCP Ping 模拟 v2rayN 测试原理，<br><br>
-            检测〔上次部署生成的链接〕对应的端口是否通畅？
-        </template>
-    </a-alert>
-        
-        <a-table 
-            :columns="checkColumns" 
-            :data-source="checkList" 
-            :row-key="record => record.ID" 
-            :pagination="false"
-            size="small"
-        >
+        <a-table :columns="checkColumns" :data-source="checkList" row-key="id" :pagination="false" size="small">
             <template slot="status" slot-scope="text, record">
-                <span v-if="record.pingLoading">
-                    <a-icon type="loading" /> 检测中...
-                </span>
+                <span v-if="record.pingLoading"><a-icon type="loading" /> 检测中...</span>
                 <span v-else>
                     <a-tag v-if="record.pingResult === undefined">待检测</a-tag>
-                    <a-tag v-else-if="record.pingResult > 0" color="green">正常: [[ record.pingResult ]]ms</a-tag>
-                    <a-tag v-else color="red">无效 / 不通</a-tag>
+                    <a-tag v-else-if="record.pingResult.ok" color="green">正常: [[ record.pingResult.ms ]]ms</a-tag>
+                    <a-tag v-else color="red">失败</a-tag>
                 </span>
+            </template>
+            <template slot="message" slot-scope="text, record">
+                <span style="font-size: 12px; color: #888;">[[ record.pingResult ? record.pingResult.msg : '' ]]</span>
             </template>
             <template slot="action" slot-scope="text, record">
                 <a-button type="primary" size="small" ghost @click="performPing(record)" :loading="record.pingLoading">
@@ -251,258 +265,372 @@
             </template>
         </a-table>
         <div style="margin-top: 20px; text-align: right;">
-             <a-button @click="checkModalVisible = false">关闭</a-button>
+            <a-button @click="checkModalVisible = false">关闭</a-button>
         </div>
     </a-modal>
-
 </a-layout>
 
 {{template "page/body_scripts" .}}
+<script src="{{ .base_path }}assets/qrcode/qrious2.min.js?{{ .cur_ver }}"></script>
+<script src="{{ .base_path }}assets/js/model/inbound.js?{{ .cur_ver }}"></script>
 {{template "component/aSidebar" .}}
 {{template "component/aThemeSwitch" .}}
 
 <script>
-    // 初始化 Vue 实例
     const app = new Vue({
-        // 重要：修改 Vue 分隔符，防止与 Go 模板引擎冲突
-        delimiters: ['[[', ']]'], 
-        // 【关键修复】：引入 MediaQueryMixin，这能让布局像 settings.html 一样自动适应，消除异常间隙
+        delimiters: ['[[', ']]'],
         mixins: [MediaQueryMixin],
         el: '#app',
         data: {
-            themeSwitcher, // 引入主题切换数据
+            themeSwitcher,
             loading: false,
             modalLoading: false,
             visible: false,
-			checkModalVisible: false,
+            checkModalVisible: false,
             resultModalVisible: false,
             resultTitle: '部署结果',
             resultSubtitle: '',
             resultLink: '',
-			
-			checkList: [],
+
+            deployModalVisible: false,
+            deployLoading: false,
+            deployForm: {
+                inboundId: null,
+                masterHost: '',
+                masterPort: 0,
+                relayPort: 20000
+            },
+            currentRelay: null,
+            inbounds: [],
+            localIp: '',
+
+            checkList: [],
             checkColumns: [
-                { title: 'ID', dataIndex: 'ID', key: 'ID', width: 60 },
+                { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
                 { title: '节点名称', dataIndex: 'name', key: 'name' },
-                { title: '状态', key: 'status', scopedSlots: { customRender: 'status' } },
-                { title: '操作', key: 'action', scopedSlots: { customRender: 'action' }, align: 'right' }
+                { title: '状态', key: 'status', width: 140, scopedSlots: { customRender: 'status' } },
+                { title: '信息', key: 'message', scopedSlots: { customRender: 'message' } },
+                { title: '操作', key: 'action', width: 110, scopedSlots: { customRender: 'action' }, align: 'right' }
             ],
 
             servers: [],
-            // 【修改这里】：定义两个独立的计数变量
-            normalCount: 0,  // 被控端数量
-            transitCount: 0, // 中转机数量
-            maxLimit: 0,
-            // 【新增数据字段结束】
-            form: {
-                name: '',
-                url: '',
-                username: '',
-                password: '',
-                type: 0
-            },
-            
-            // 用于控制模态框显示的类型状态 (0=被控端, 1=中转机)
+            form: { name: '', url: '', username: '', password: '', remark: '', type: 0 },
             formType: 0,
-            // 【分页新增】：分页配置
-            paginationConfig: {
-                pageSize: 5, // 每页显示5条
-                showSizeChanger: false,
-                hideOnSinglePage: true,
-            },
-            // 【分页新增】：当前页数
+            paginationConfig: { pageSize: 8, showSizeChanger: false, hideOnSinglePage: true },
             normalCurrentPage: 1,
             transitCurrentPage: 1,
-            
-            // 表格列定义
             columns: [
-                { title: 'ID', dataIndex: 'ID', key: 'ID', width: 80 },
+                { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
                 { title: '备注名称', dataIndex: 'name', key: 'name' },
                 { title: '面板地址', dataIndex: 'url', key: 'url' },
                 { title: '用户名', dataIndex: 'username', key: 'username' },
-                { 
-                    title: '添加时间', 
-                    dataIndex: 'CreatedAt', // 修改点1：这里必须改成大写的 CreatedAt
-                    key: 'CreatedAt',
-                    width: 180,
-                    // 修改点2：添加格式化，把 "2023-11-21T..." 变成 "2023-11-21 10:00"
-                    customRender: (text) => {
-                        if (!text) return '';
-                        // 简单处理：去掉 T，截取前19位
-                        return text.replace('T', ' ').substring(0, 19);
-                    }
+                { title: '状态', key: 'status', width: 100, scopedSlots: { customRender: 'status' } },
+                {
+                    title: '添加时间', dataIndex: 'createdAt', key: 'createdAt', width: 170,
+                    customRender: (text) => text ? DateUtil.formatMillis(text * 1000) : ''
                 },
-                { title: '操作', key: 'action', scopedSlots: { customRender: 'action' }, width: 220 }
+                { title: '操作', key: 'action', width: 300, scopedSlots: { customRender: 'action' } }
             ]
         },
 
-            computed: {
-            // 过滤普通被控端 (type=0)
+        computed: {
             normalServers() {
-                return this.servers.filter(s => s.type === 0 || s.type === undefined);
+                return this.servers.filter(s => (s.type || 0) === 0);
             },
-            // 过滤中转机 (type=1)
             transitServers() {
                 return this.servers.filter(s => s.type === 1);
             },
-            
-            // 【分页核心】：普通被控端 - 当前页数据 (返回空列表)
             normalServersPage() {
-                // 因为 this.normalServers 始终为空，所以这里返回空
-                return [];
+                const start = (this.normalCurrentPage - 1) * this.paginationConfig.pageSize;
+                return this.normalServers.slice(start, start + this.paginationConfig.pageSize);
             },
-            // 【分页核心】：中转机 - 当前页数据 (返回空列表)
             transitServersPage() {
-                 // 因为 this.transitServers 始终为空，所以这里返回空
-                return [];
+                const start = (this.transitCurrentPage - 1) * this.paginationConfig.pageSize;
+                return this.transitServers.slice(start, start + this.paginationConfig.pageSize);
             },
-
-            // 【分页核心】：分页对象 (total 始终为 0)
             normalPagination() {
-                return {...this.paginationConfig, current: this.normalCurrentPage, total: 0};
+                return { ...this.paginationConfig, current: this.normalCurrentPage, total: this.normalServers.length };
             },
-            // 【分页核心】：分页对象 (total 始终为 0)
             transitPagination() {
-                return {...this.paginationConfig, current: this.transitCurrentPage, total: 0};
-            },
+                return { ...this.paginationConfig, current: this.transitCurrentPage, total: this.transitServers.length };
+            }
         },
-        
-        methods: {
-            // 【新增跳转逻辑】
-            // 点击后跳转到 settings 页面，并带上 query 参数 tab=telegram
-            goToTgSettings() {
-                window.location.href = "./settings?tab=telegram"; 
-            },
 
-            // 【分页新增】：处理普通列表分页切换
+        methods: {
+            goToTgSettings() {
+                window.location.href = "./settings?tab=telegram";
+            },
             handleNormalTableChange(pagination) {
                 this.normalCurrentPage = pagination.current;
             },
-            // 【分页新增】：处理中转列表分页切换
             handleTransitTableChange(pagination) {
                 this.transitCurrentPage = pagination.current;
             },
 
-            // 【拦截方法】：拦截获取链接操作
-            getLastLink(record) {
-                 // 【免费版】：拦截获取链接操作
-                this.$message.warning("〔免费基础版〕不支持此操作");
-                return;
-            },
-
-             // 执行一键中转部署
-            async setupRelay(record) {
-                 // 【免费版修改】：拦截部署操作
-                this.$message.warning("〔免费基础版〕不支持此操作");
-                return;
-            },
-
-            // 获取服务器列表
             async getServers() {
-                // 1. 模拟加载结束
-                this.loading = false;
-                // 2. 强制清空列表
-                this.servers = []; 
-                // 3. 【关键】：强制设置数量和额度为 0
-                this.normalCount = 0;
-                this.transitCount = 0;
-                this.maxLimit = 0; // 强制显示“最多可绑：0 台”
+                this.loading = true;
+                try {
+                    const msg = await HttpUtil.get('/panel/api/servers/list');
+                    if (msg.success) {
+                        this.servers = (msg.obj || []).map(s => ({ ...s, pingResult: undefined }));
+                    } else {
+                        this.$message.error(msg.msg || '读取列表失败');
+                    }
+                } finally {
+                    this.loading = false;
+                }
             },
 
-
-            // 打开添加弹窗
-            // openAddModal 方法接收 type 参数
-            // type: 0 = 普通被控端, 1 = 中转机
             openAddModal(type = 0) {
-                // 1. 设置当前模态框的 UI 类型
                 this.formType = type;
-                
-                // 2. 初始化表单，并将 type 写入表单数据中
-                this.form = { 
-                    name: '', 
-                    url: 'https://', 
-                    username: '', 
-                    password: '',
-                    type: type // 【关键】：这里确保提交给后端的数据包含正确的类型
-                };
-                
+                this.form = { name: '', url: 'https://', username: '', password: '', remark: '', type: type };
                 this.visible = true;
             },
 
-            // 提交添加请求
             async submitServer() {
-                
-                // 1. 先关闭刚才填写的模态框，
-                this.visible = false;
+                if (!this.form.name || !this.form.url || !this.form.username || !this.form.password) {
+                    this.$message.warning('请填写完整的名称、地址、用户名和密码');
+                    return;
+                }
+                this.modalLoading = true;
+                try {
+                    const msg = await HttpUtil.post('/panel/api/servers/add', this.form);
+                    if (msg.success) {
+                        this.$message.success('添加成功');
+                        this.visible = false;
+                        await this.getServers();
+                    } else {
+                        this.$message.error(msg.msg || '添加失败');
+                    }
+                } finally {
+                    this.modalLoading = false;
+                }
+            },
 
-                // 2. 使用 Vue 的 createElement 函数构建支持 HTML 的提示内容
-                const h = this.$createElement;
-                
-                // 3. 弹出警告提示框
-                this.$warning({
-                    title: '功能受限提示',
-                    okText: '知道了',
-                    // 【核心修改点 1】：调整弹窗宽度，使其足够容纳一行文字
-                    width: 580, 
-                    // 这里定义提示框的具体内容和样式
-                    content: h('div', { style: 'margin-top: 10px; font-size: 15px; line-height: 1.6;' }, [ // 增加行高，提升阅读体验
-                        
-                        // 第一段：设置底部外边距，模拟空行
-                        h('p', { style: 'margin-bottom: 15px;' }, '此项功能是“付费Pro版”专属功能，免费版不能用，'), 
-                        
-                        // 第二段：设置底部外边距，模拟空行
-                        h('p', { style: 'margin-bottom: 15px;' }, '请联系面板管理员〔购买授权码〕之后才能继续使用。'), 
-                        
-                        // 第三段：TG 链接（无需底部外边距）
-                        h('p', { style: 'color: #ff4d4f; font-weight: bold; margin-bottom: 0;' }, [
-                            '----->>> “授权码购买”机器人：',
-                            h('a', { 
-                                // 设置跳转链接到 Telegram
-                                attrs: { 
-                                    href: 'https://t.me/Buy_ShouQuan_Bot', 
-                                    target: '_blank' // 在新标签页打开
-                                }, 
-                                style: { 
-                                    color: '#1890ff', // 链接颜色
-                                    fontWeight: 'bold',
-                                    textDecoration: 'underline' // 链接下划线
-                                } 
-                            }, '@Buy_ShouQuan_Bot')
-                        ]),
-                    ]),
-                    onOk() {}
+            deleteServer(record) {
+                const that = this;
+                this.$confirm({
+                    title: '确认删除',
+                    content: '确定删除〔' + record.name + '〕吗？这不会影响被控端面板本身。',
+                    okText: '删除',
+                    okType: 'danger',
+                    cancelText: '取消',
+                    async onOk() {
+                        const msg = await HttpUtil.post('/panel/api/servers/del/' + record.id);
+                        if (msg.success) {
+                            that.$message.success('已删除');
+                            await that.getServers();
+                        } else {
+                            that.$message.error(msg.msg || '删除失败');
+                        }
+                    }
                 });
             },
 
-            // 删除服务器
-            deleteServer(record) {
-                // 【免费版修改】：拦截删除操作
-                this.$message.warning("〔免费基础版〕不支持此操作");
-                return; 
+            async checkServer(record) {
+                record.checkLoading = true;
+                try {
+                    const msg = await HttpUtil.post('/panel/api/servers/check/' + record.id);
+                    if (!msg.success) {
+                        this.$message.error(msg.msg || '检测失败');
+                        return;
+                    }
+                    const r = msg.obj;
+                    record.status = r.ok;
+                    if (r.ok) {
+                        this.$message.success(`〔${record.name}〕连接正常，${r.ms}ms，入站 ${r.count} 个`);
+                    } else {
+                        this.$message.error(`〔${record.name}〕连接失败：${r.msg}`);
+                    }
+                } finally {
+                    record.checkLoading = false;
+                }
             },
 
-             // 【拦截方法】：拦截【检测中转节点】操作
-            openCheckModal() {
-                // 【免费版修改】：拦截【检测中转节点】操作
-                this.$message.warning("〔免费基础版〕不支持此操作");
-                return; 
+            getLastLink(record) {
+                this.resultTitle = '上次生成的中转链接';
+                this.resultSubtitle = `节点：${record.name}\n地址：${record.url}`;
+                this.resultLink = record.lastLink || '';
+                this.resultModalVisible = true;
+                this.$nextTick(() => this.renderQrcode(this.firstLink()));
             },
-			copyLink() {
-                if(!this.resultLink) return;
-                const input = document.createElement('input');
+
+            firstLink() {
+                return (this.resultLink || '').split('\n').filter(x => x.trim().length > 0)[0] || '';
+            },
+
+            renderQrcode(link, retry = 0) {
+                if (!link) return;
+                const el = document.getElementById('qrcode-canvas');
+                if (!el) {
+                    if (retry < 20) {
+                        setTimeout(() => this.renderQrcode(link, retry + 1), 100);
+                    }
+                    return;
+                }
+                if (typeof QRious === 'undefined') {
+                    console.error('QRious 未加载，无法生成二维码');
+                    return;
+                }
+                el.innerHTML = '';
+                const canvas = document.createElement('canvas');
+                el.appendChild(canvas);
+                try {
+                    new QRious({ element: canvas, size: 220, value: link, level: 'L' });
+                } catch (e) {
+                    console.error('二维码生成失败', e);
+                }
+            },
+
+            copyLink() {
+                if (!this.resultLink) return;
+                const input = document.createElement('textarea');
                 input.value = this.resultLink;
                 document.body.appendChild(input);
                 input.select();
                 document.execCommand('Copy');
                 document.body.removeChild(input);
-                this.$message.success('复制成功');
+                this.$message.success('已复制');
             },
-            performPing(record) {
-                 // 占位
+
+            async setupRelay(record) {
+                this.currentRelay = record;
+                this.deployForm = {
+                    inboundId: null,
+                    masterHost: this.localIp || '',
+                    masterPort: 0,
+                    relayPort: Math.floor(Math.random() * 40000) + 20000
+                };
+                this.deployModalVisible = true;
+                await this.loadInbounds();
+                await this.loadLocalIp();
+            },
+
+            async loadLocalIp() {
+                try {
+                    const msg = await HttpUtil.get('/panel/api/servers/localip');
+                    if (msg.success && msg.obj && msg.obj.ip && msg.obj.ip !== 'N/A') {
+                        this.localIp = msg.obj.ip;
+                        if (!this.deployForm.masterHost) {
+                            this.deployForm.masterHost = msg.obj.ip;
+                        }
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            },
+
+            async loadInbounds() {
+                const msg = await HttpUtil.get('/panel/api/inbounds/list');
+                if (msg.success) {
+                    this.inbounds = (msg.obj || []).filter(ib => ib.enable);
+                }
+            },
+
+            onInboundChange(id) {
+                const ib = this.inbounds.find(x => x.id === id);
+                if (ib) {
+                    this.deployForm.masterPort = ib.port;
+                }
+            },
+
+            async doDeployRelay() {
+                if (!this.currentRelay) return;
+                if (!this.deployForm.inboundId) {
+                    this.$message.warning('请选择要中转的主控入站');
+                    return;
+                }
+                if (!this.deployForm.masterHost) {
+                    this.$message.warning('请填写主控地址');
+                    return;
+                }
+                const ib = this.inbounds.find(x => x.id === this.deployForm.inboundId);
+                if (!ib) {
+                    this.$message.warning('入站不存在，请刷新后重试');
+                    return;
+                }
+                this.deployLoading = true;
+                try {
+                    const msg = await HttpUtil.post('/panel/api/servers/deploy/' + this.currentRelay.id, {
+                        masterHost: this.deployForm.masterHost,
+                        masterPort: ib.port,
+                        relayPort: this.deployForm.relayPort,
+                        remark: 'X-Panel中转-' + this.currentRelay.name
+                    });
+                    if (!msg.success) {
+                        this.$message.error(msg.msg || '部署失败');
+                        return;
+                    }
+                    const relay = msg.obj;
+                    const links = this.buildRelayLinks(this.currentRelay, ib, relay.host, relay.port);
+                    const text = links.length > 0 ? links.join('\n') : `${relay.host}:${relay.port} -> ${this.deployForm.masterHost}:${ib.port}`;
+                    await HttpUtil.post('/panel/api/servers/link/' + this.currentRelay.id, { link: text });
+
+                    this.deployModalVisible = false;
+                    this.resultTitle = '中转部署成功';
+                    this.resultSubtitle = `中转机：${this.currentRelay.name}\n中转地址：${relay.host}:${relay.port}\n回连地址：${this.deployForm.masterHost}:${ib.port}\n\n提示：请确保中转机防火墙已放行 ${relay.port} 端口。`;
+                    this.resultLink = text;
+                    this.resultModalVisible = true;
+                    this.$nextTick(() => this.renderQrcode(this.firstLink()));
+                    await this.getServers();
+                } finally {
+                    this.deployLoading = false;
+                }
+            },
+
+            buildRelayLinks(record, inboundRaw, relayHost, relayPort) {
+                try {
+                    const inbound = Inbound.fromJson({
+                        port: inboundRaw.port,
+                        listen: inboundRaw.listen || '',
+                        protocol: inboundRaw.protocol,
+                        settings: JSON.parse(inboundRaw.settings || '{}'),
+                        streamSettings: JSON.parse(inboundRaw.streamSettings || '{}'),
+                        tag: inboundRaw.tag || '',
+                        sniffing: JSON.parse(inboundRaw.sniffing || '{}'),
+                        clientStats: inboundRaw.clientStats
+                    });
+                    const clients = inbound.clients || [];
+                    const links = [];
+                    if (clients.length > 0) {
+                        clients.forEach(c => {
+                            const remark = (c.email || record.name) + '-中转';
+                            const link = inbound.genLink(relayHost, relayPort, 'same', remark, c);
+                            if (link) links.push(link);
+                        });
+                    } else {
+                        const link = inbound.genLink(relayHost, relayPort, 'same', record.name, {});
+                        if (link) links.push(link);
+                    }
+                    return links;
+                } catch (e) {
+                    console.error('生成链接失败', e);
+                    return [];
+                }
+            },
+
+            openCheckModal() {
+                this.checkList = this.transitServers.map(s => ({ ...s, pingResult: undefined, pingLoading: false }));
+                this.checkModalVisible = true;
+            },
+
+            async performPing(record) {
+                record.pingLoading = true;
+                try {
+                    const msg = await HttpUtil.post('/panel/api/servers/check/' + record.id);
+                    if (msg.success) {
+                        record.pingResult = msg.obj;
+                    } else {
+                        record.pingResult = { ok: false, ms: 0, msg: msg.msg || '检测失败' };
+                    }
+                } finally {
+                    record.pingLoading = false;
+                }
             }
         },
-        mounted() {
-            this.getServers();
+
+        async mounted() {
+            await this.getServers();
         }
     });
 </script>
