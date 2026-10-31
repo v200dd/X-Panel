@@ -45,9 +45,15 @@ echo -e "${yellow}〔X-Panel面板〕最新版为---------->>> ${last_version}${
 
 os_version=$(grep -i version_id /etc/os-release | cut -d \" -f2 | cut -d . -f1)
 
-if [[ "${release}" == "centos" ]]; then
+if [[ "${XUI_ALLOW_OS}" == "1" ]]; then
+    echo -e "${yellow}已跳过系统版本检查 (XUI_ALLOW_OS=1)${plain}"
+elif [[ "${release}" == "centos" ]]; then
     if [[ ${os_version} -lt 8 ]]; then
-        echo -e "${red} 请使用 CentOS 8 或更高版本 ${plain}\n" && exit 1
+        if [[ ${os_version} -eq 7 ]]; then
+            echo -e "${yellow}检测到 CentOS 7（已 EOL），以兼容模式继续运行${plain}"
+        else
+            echo -e "${red} 请使用 CentOS 7 或更高版本 ${plain}\n" && exit 1
+        fi
     fi
 elif [[ "${release}" == "ubuntu" ]]; then
     if [[ ${os_version} -lt 20 ]]; then
@@ -92,7 +98,7 @@ else
     echo "请确保您使用的是以下受支持的操作系统之一："
     echo "- Ubuntu 20.04+"
     echo "- Debian 11+"
-    echo "- CentOS 8+"
+    echo "- CentOS 7+（7 为兼容模式）"
     echo "- Fedora 36+"
     echo "- Arch Linux"
     echo "- Parch Linux"
