@@ -8,8 +8,8 @@
 # 默认使用已去激活的仓库；如换成自己的 fork，改这里或设同名环境变量
 XPANEL_REPO="${XPANEL_REPO:-v200dd/X-Panel}"
 XPANEL_BRANCH="${XPANEL_BRANCH:-main}"
-# 默认源码构建（保证装到的是去激活版本）；若你的仓库已发布 Release，可设 XUI_FROM_SOURCE=0 直接下载
-XUI_FROM_SOURCE="${XUI_FROM_SOURCE:-1}"
+# 1=源码构建（最保险）；0=直接下载 Release 二进制（更快，失败会自动回退源码构建）
+XUI_FROM_SOURCE="${XUI_FROM_SOURCE:-0}"
 
 red='\033[0;31m'
 green='\033[0;32m'
@@ -406,10 +406,11 @@ install_free_version() {
             sleep 2
             if [[ "${XUI_FROM_SOURCE}" != "1" ]]; then
                 wget -N --no-check-certificate -O /usr/local/x-ui-linux-$(arch).tar.gz https://github.com/${XPANEL_REPO}/releases/download/${last_version}/x-ui-linux-$(arch).tar.gz
-            fi
-            if [[ $? -ne 0 ]]; then
-                echo -e "${red}下载 X-Panel 失败, 请检查服务器是否可以连接至 GitHub？ ${plain}"
-                exit 1
+                if [[ $? -ne 0 ]]; then
+                    echo -e "${yellow}Release 下载失败，自动切换为源码构建...${plain}"
+                    build_from_source_tarball
+                    last_version="源码构建"
+                fi
             fi
         else
             last_version=$1
